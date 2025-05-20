@@ -1,7 +1,7 @@
 import os
 import json
 
-def read_saved_data(filepath):
+def read_json_file(filepath):
     """
     Read data from a saved JSON file.
 
