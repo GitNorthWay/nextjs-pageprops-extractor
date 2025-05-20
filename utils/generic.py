@@ -1,7 +1,8 @@
 import os
 import json
+from typing import Dict, Any, Optional, Union
 
-def read_json_file(filepath):
+def read_json_file(filepath: str) -> Optional[Dict[str, Any]]:
     """
     Read data from a saved JSON file.
 
@@ -18,7 +19,7 @@ def read_json_file(filepath):
         print(f"Error reading data from {filepath}: {e}")
         return None
 
-def save_data_to_json(data, url, folder="data"):
+def save_data_to_json(data: Dict[str, Any], url: str, folder: str = "data") -> Optional[str]:
     """
     Save the extracted data to a JSON file in the specified folder.
 

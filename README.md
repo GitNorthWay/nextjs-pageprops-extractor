@@ -11,8 +11,8 @@ This project provides tools to extract data from the `__NEXT_DATA__` script tag 
 
 1. Clone the repository:
    ```
-   git clone https://github.com/yourusername/checkyourdeals.git
-   cd checkyourdeals
+   git clone https://github.com/yourusername/nextjs-pageprops-extractor.git
+   cd nextjs-pageprops-extractor
    ```
 
 2. Install the required dependencies:
@@ -24,30 +24,58 @@ This project provides tools to extract data from the `__NEXT_DATA__` script tag 
 
 ### Basic Usage
 
-In main.py add the homepage URL for cookie handling and the page URL for the page you want to extract data from. You will get a message whether the extraction was successful or not.
+The tool uses a JSON configuration file (`website_details.json`) to specify the URLs for extraction. This file should contain the homepage URL for cookie handling and the specific page URL for data extraction.
+
+#### Configuration File
+
+Create a `website_details.json` file in the root directory with the following structure:
+
+```json
+{
+  "homepage_url": "https://www.example.com",
+  "page_url": "https://www.example.com/some-next-js-page"
+}
+```
+
+An example file (`website_details_example.json`) is provided in the repository.
+
+#### Class-based approach
 
 ```python
-from utils.next_data_extractor import extract_next_data
+from typing import Dict, Optional
+from utils.generic import read_json_file
+from utils.next_data_extractor import NextDataExtractor
 
-# URLs for the website
-homepage_url = "https://example.com"  # Homepage URL for cookie handling
-page_url = "https://example.com/some-next-js-page"  # Specific page to extract data from
+# Load website details from JSON file
+website_details: Optional[Dict[str, str]] = read_json_file("website_details.json")
 
-# Extract the pageProps data and save to a JSON file in the 'data' folder
-page_props = extract_next_data(homepage_url, page_url)
+if website_details is None:
+    print("Failed to read website_details.json")
+    exit(1)
 
-if page_props:
-   print("Successfully extracted pageProps and saved to the 'data' folder")
-else:
-   print("Failed to extract pageProps from the page")
+# Extract URLs from the configuration
+homepage_url: str = website_details["homepage_url"]
+page_url: str = website_details["page_url"]
+
+# Use the extractor as a context manager
+with NextDataExtractor(homepage_url, headless=True) as extractor:
+    # Extract data and save to a JSON file
+    success: bool = extractor.extract_and_save(page_url)
+
+    if success:
+        print(f"Successfully extracted and saved data from {page_url}")
+    else:
+        print(f"Failed to extract data from {page_url}")
 ```
 
 ### Visible Browser for Debugging
 
-For debugging purposes, you can run Selenium with a visible browser window:
+For debugging purposes, you can run Selenium with a visible browser window by setting the `headless` parameter to `False`:
 
 ```python
-page_props = extract_next_data(homepage_url, page_url, headless=False)
+# After loading website details from JSON file as shown above
+with NextDataExtractor(homepage_url, headless=False) as extractor:
+    success = extractor.extract_and_save(page_url)
 ```
 
 ## WebDriver Initialization Approaches
@@ -183,6 +211,14 @@ chrome_options.page_load_strategy = "normal"
 ```
 - Sets the page load strategy to "normal", which waits for the page to be fully loaded before proceeding. Other options include "eager" (faster but less complete) and "none" (minimal waiting).
 
+### Blocking Analytics and Tracking Domains
+
+```python
+blocked_domains_str = ",".join(self.blocked_domains)
+chrome_options.add_argument(f"--host-blocking-patterns={blocked_domains_str}")
+```
+- Blocks requests to analytics and tracking domains to prevent timeout errors and improve performance. The list of blocked domains is configurable and includes common analytics platforms by default.
+
 ## Additional Anti-Bot Techniques
 
 Beyond Chrome options, the module implements several behavioral techniques to appear more human-like:
@@ -242,33 +278,97 @@ If you encounter issues with Selenium on Windows:
 4. Try manually downloading the ChromeDriver that matches your Chrome version from the [official site](https://chromedriver.chromium.org/downloads) and placing it in your PATH
 5. For 32-bit vs 64-bit issues, make sure you're using the correct version of Chrome for your system architecture
 
-## Appliction References
+## Default Blocked Analytics Platforms
 
-### `extract_next_data(homepage_url, page_url, headless=True)`
+The NextDataExtractor class blocks requests to the following analytics and tracking domains by default:
 
-Main function that extracts pageProps data from a Next.js page using Selenium and saves it to a JSON file.
+- plausible.io
+- google-analytics.com
+- analytics.google.com
+- googletagmanager.com
+- hotjar.com
+- mixpanel.com
+- segment.io
+- segment.com
+- matomo.cloud
+- matomo.org
+- clarity.ms
+- facebook.net
+- facebook.com
+- linkedin.com
+- twitter.com
+- amplitude.com
+- heap.io
+- fullstory.com
+- logrocket.com
+- mouseflow.com
+- doubleclick.net
+- quantserve.com
+- scorecardresearch.com
+- chartbeat.com
+- kissmetrics.com
+- clicky.com
+- newrelic.com
+- adobe.com
+- crazyegg.com
+
+You can customize this list by passing your own list of domains to block:
+
+```python
+# After loading website details from JSON file
+website_details = read_json_file("website_details.json")
+homepage_url = website_details["homepage_url"]
+page_url = website_details["page_url"]
+
+# Custom list of domains to block
+my_blocked_domains = ["analytics.example.com", "tracker.example.com"]
+
+# Use with the class-based approach
+with NextDataExtractor(homepage_url, blocked_domains=my_blocked_domains) as extractor:
+    success = extractor.extract_and_save(page_url)
+```
+
+## API Reference
+
+### Class: `NextDataExtractor`
+
+A class for extracting pageProps data from Next.js pages using Selenium.
+
+#### Constructor
+
+```python
+NextDataExtractor(homepage_url, headless=True, blocked_domains=None)
+```
 
 **Parameters:**
 - `homepage_url` (str): The homepage URL of the website (used for cookie handling)
-- `page_url` (str): The URL of the Next.js page to extract data from
-- `headless` (bool): Whether to run the Selenium browser in headless mode (default: True)
-
-**Returns:**
-- `bool`: True if extraction was successful, None if it failed
-
-### `extract_next_data_with_selenium(homepage_url, page_url, headless=True)`
-
-Extract pageProps data using Selenium.
-
-**Parameters:**
-- `homepage_url` (str): The homepage URL of the website (used for cookie handling)
-- `page_url` (str): The URL of the Next.js page to extract data from
 - `headless` (bool): Whether to run the browser in headless mode (default: True)
+- `blocked_domains` (List[str], optional): List of domains to block. If None, uses DEFAULT_BLOCKED_DOMAINS
+
+#### Methods
+
+##### `extract_page_props(page_url)`
+
+Extract pageProps data from a Next.js page.
+
+**Parameters:**
+- `page_url` (str): The URL of the Next.js page to extract data from
 
 **Returns:**
 - `dict`: The pageProps data or None if not found
 
-### `save_data_to_json(data, url, folder="data")`
+##### `extract_and_save(page_url)`
+
+Extract pageProps data from a Next.js page and save it to a JSON file.
+
+**Parameters:**
+- `page_url` (str): The URL of the Next.js page to extract data from
+
+**Returns:**
+- `bool`: True if extraction and saving succeeded, False otherwise
+
+
+### Function: `save_data_to_json(data, url, folder="data")`
 
 Save the extracted data to a JSON file in the specified folder.
 
