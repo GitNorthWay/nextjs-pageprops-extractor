@@ -34,5 +34,8 @@ ENV/
 # Project specific
 /data/
 
+# Files
+website_details.json
+
 # Logs
 *.log
